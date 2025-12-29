@@ -1,56 +1,82 @@
-import { Injectable } from '@nestjs/common';
-import { User } from '../entities/user.entity';
-import { UserMapper } from '../mappers/user.mapper';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CreateUserDto } from '../dtos/create-user.dto';
-import { UpdateUserDto } from '../dtos/update-user.dto';
 import { PartialUpdateUserDto } from '../dtos/partial-user.dto';
+import { UpdateUserDto } from '../dtos/update-user.dto';
+import { UserResponseDto } from '../dtos/user-response.dto';
+import { UserMapper } from '../mappers/user.mapper';
+import { UserEntity } from '../entities/user.entity';
 
 @Injectable()
 export class UsersService {
-  private users: User[] = [];
-  private currentId = 1;
+  constructor(
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
+  ) {}
 
-  findAll() {
-    return this.users.map((u) => UserMapper.toResponse(u));
+  async findAll(): Promise<UserResponseDto[]> {
+    const entities = await this.userRepository.find();
+    return entities.map((entity) => UserMapper.toResponse(entity));
   }
 
-  findOne(id: number) {
-    const user = this.users.find((u) => u.id === id);
-    if (!user) return { error: 'User not found' };
-    return UserMapper.toResponse(user);
-  }
-
-  create(dto: CreateUserDto) {
-    const entity = UserMapper.toEntity(this.currentId++, dto);
-    this.users.push(entity);
+  async findOne(id: number): Promise<UserResponseDto> {
+    const entity = await this.userRepository.findOne({ where: { id } });
+    if (!entity) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
     return UserMapper.toResponse(entity);
   }
 
-  update(id: number, dto: UpdateUserDto) {
-    const user = this.users.find((u) => u.id === id);
-    if (!user) return { error: 'User not found' };
-
-    user.name = dto.name;
-    user.email = dto.email;
-
-    return UserMapper.toResponse(user);
+  async create(dto: CreateUserDto): Promise<UserResponseDto> {
+    const entity = this.userRepository.create(UserMapper.toEntity(dto));
+    const saved = await this.userRepository.save(entity);
+    return UserMapper.toResponse(saved);
   }
 
-  partialUpdate(id: number, dto: PartialUpdateUserDto) {
-    const user = this.users.find((u) => u.id === id);
-    if (!user) return { error: 'User not found' };
+  async update(id: number, dto: UpdateUserDto): Promise<UserResponseDto> {
+    const entity = await this.userRepository.findOne({ where: { id } });
+    if (!entity) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
 
-    if (dto.name !== undefined) user.name = dto.name;
-    if (dto.email !== undefined) user.email = dto.email;
+    entity.name = dto.name;
+    entity.email = dto.email;
+    if (dto.password !== undefined) {
+      entity.password = dto.password;
+    }
 
-    return UserMapper.toResponse(user);
+    const saved = await this.userRepository.save(entity);
+    return UserMapper.toResponse(saved);
   }
 
-  delete(id: number) {
-    const exists = this.users.some((u) => u.id === id);
-    if (!exists) return { error: 'User not found' };
+  async partialUpdate(
+    id: number,
+    dto: PartialUpdateUserDto,
+  ): Promise<UserResponseDto> {
+    const entity = await this.userRepository.findOne({ where: { id } });
+    if (!entity) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
 
-    this.users = this.users.filter((u) => u.id !== id);
-    return { message: 'Deleted successfully' };
+    if (dto.name !== undefined) {
+      entity.name = dto.name;
+    }
+    if (dto.email !== undefined) {
+      entity.email = dto.email;
+    }
+    if (dto.password !== undefined) {
+      entity.password = dto.password;
+    }
+
+    const saved = await this.userRepository.save(entity);
+    return UserMapper.toResponse(saved);
+  }
+
+  async delete(id: number): Promise<void> {
+    const result = await this.userRepository.delete(id);
+    if (result.affected === 0) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
   }
 }
