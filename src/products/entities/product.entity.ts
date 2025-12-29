@@ -7,10 +7,10 @@ export class ProductEntity extends BaseEntity {
   name: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string;
+  description: string | null;
 
   @Column({ type: 'numeric', precision: 10, scale: 2, nullable: false })
-  price: number;
+  price: string;
 
   @Column({ type: 'int', nullable: false, default: 0 })
   stock: number;

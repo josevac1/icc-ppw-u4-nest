@@ -1,8 +1,8 @@
 export class ProductResponseDto {
   id: number;
   name: string;
-  description: string;
-  price: number;
+  description: string | null;
+  price: string;
   stock: number;
   createdAt: string;
 }

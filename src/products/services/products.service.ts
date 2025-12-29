@@ -1,58 +1,67 @@
-import { Injectable } from '@nestjs/common';
-import { Product } from '../entities/product.entity';
-import { ProductMapper } from '../mappers/product.mapper';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CreateProductDto } from '../dtos/create-product.dto';
 import { UpdateProductDto } from '../dtos/update-product.dto';
+import { ProductResponseDto } from '../dtos/product-response.dto';
+import { ProductEntity } from '../entities/product.entity';
+import { Product } from '../models/product.models';
 import { PartialUpdateProductDto } from '../dtos/partial-product.dto';
 
 @Injectable()
 export class ProductsService {
-  private products: Product[] = [];
-  private currentId = 1;
+  constructor(
+    @InjectRepository(ProductEntity)
+    private readonly repo: Repository<ProductEntity>,
+  ) {}
 
-  findAll() {
-    return this.products.map((p) => ProductMapper.toResponse(p));
+  async findAll(): Promise<ProductResponseDto[]> {
+    return (await this.repo.find({ where: { deleted: false } }))
+      .map((entity) => Product.fromEntity(entity))
+      .map((product) => product.toResponseDto());
   }
 
-  findOne(id: number) {
-    const product = this.products.find((p) => p.id === id);
-    if (!product) return { error: 'Product not found' };
-    return ProductMapper.toResponse(product);
+  async findOne(id: number): Promise<ProductResponseDto> {
+    const entity = await this.repo.findOne({ where: { id, deleted: false } });
+    if (!entity) throw new NotFoundException(`Product with ID ${id} not found`);
+    return Product.fromEntity(entity).toResponseDto();
   }
 
-  create(dto: CreateProductDto) {
-    const entity = ProductMapper.toEntity(this.currentId++, dto);
-    this.products.push(entity);
-    return ProductMapper.toResponse(entity);
+  async create(dto: CreateProductDto): Promise<ProductResponseDto> {
+    const saved = await this.repo.save(Product.fromDto(dto).toEntity());
+    return Product.fromEntity(saved).toResponseDto();
   }
 
-  update(id: number, dto: UpdateProductDto) {
-    const product = this.products.find((p) => p.id === id);
-    if (!product) return { error: 'Product not found' };
+  async update(id: number, dto: UpdateProductDto): Promise<ProductResponseDto> {
+    const entity = await this.repo.findOne({ where: { id, deleted: false } });
+    if (!entity) throw new NotFoundException(`Product with ID ${id} not found`);
 
-    product.name = dto.name;
-    product.description = dto.description;
-    product.price = dto.price;
+    const saved = await this.repo.save(
+      Product.fromEntity(entity).update(dto).toEntity(),
+    );
 
-    return ProductMapper.toResponse(product);
+    return Product.fromEntity(saved).toResponseDto();
   }
 
-  partialUpdate(id: number, dto: PartialUpdateProductDto) {
-    const product = this.products.find((p) => p.id === id);
-    if (!product) return { error: 'Product not found' };
+  async partialUpdate(
+    id: number,
+    dto: PartialUpdateProductDto,
+  ): Promise<ProductResponseDto> {
+    const entity = await this.repo.findOne({ where: { id, deleted: false } });
+    if (!entity) throw new NotFoundException(`Product with ID ${id} not found`);
 
-    if (dto.name !== undefined) product.name = dto.name;
-    if (dto.description !== undefined) product.description = dto.description;
-    if (dto.price !== undefined) product.price = dto.price;
+    const saved = await this.repo.save(
+      Product.fromEntity(entity).partialUpdate(dto).toEntity(),
+    );
 
-    return ProductMapper.toResponse(product);
+    return Product.fromEntity(saved).toResponseDto();
   }
 
-  delete(id: number) {
-    const exists = this.products.some((p) => p.id === id);
-    if (!exists) return { error: 'Product not found' };
+  async delete(id: number): Promise<void> {
+    const entity = await this.repo.findOne({ where: { id, deleted: false } });
+    if (!entity) throw new NotFoundException(`Product with ID ${id} not found`);
 
-    this.products = this.products.filter((p) => p.id !== id);
-    return { message: 'Deleted successfully' };
+    entity.deleted = true;
+    await this.repo.save(entity);
   }
 }
