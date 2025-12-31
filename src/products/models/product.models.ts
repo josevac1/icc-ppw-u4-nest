@@ -24,7 +24,6 @@ export class Product {
       new Date(),
     );
   }
-
   static fromEntity(entity: ProductEntity): Product {
     return new Product(
       entity.id,
@@ -35,7 +34,6 @@ export class Product {
       entity.createdAt,
     );
   }
-
   toEntity(): ProductEntity {
     const e = new ProductEntity();
     if (this.id > 0) e.id = this.id;

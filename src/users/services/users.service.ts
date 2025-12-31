@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateUserDto } from '../dtos/create-user.dto';
@@ -29,6 +33,14 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto): Promise<UserResponseDto> {
+    // Validar que el email no exista
+    const exists = await this.userRepository.exist({
+      where: { email: dto.email },
+    });
+    if (exists) {
+      throw new BadRequestException('El email ya está registrado');
+    }
+
     const entity = this.userRepository.create(UserMapper.toEntity(dto));
     const saved = await this.userRepository.save(entity);
     return UserMapper.toResponse(saved);
@@ -73,10 +85,12 @@ export class UsersService {
     return UserMapper.toResponse(saved);
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: number): Promise<{ message: string }> {
     const result = await this.userRepository.delete(id);
     if (result.affected === 0) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
+
+    return { message: 'User deleted successfully' };
   }
 }

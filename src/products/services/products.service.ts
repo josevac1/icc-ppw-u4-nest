@@ -57,11 +57,13 @@ export class ProductsService {
     return Product.fromEntity(saved).toResponseDto();
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: number): Promise<{ message: string }> {
     const entity = await this.repo.findOne({ where: { id, deleted: false } });
     if (!entity) throw new NotFoundException(`Product with ID ${id} not found`);
 
     entity.deleted = true;
     await this.repo.save(entity);
+
+    return { message: 'Product deleted successfully' };
   }
 }

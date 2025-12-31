@@ -15,13 +15,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
       password: process.env.DB_PASSWORD ?? 'ups123',
       database: process.env.DB_NAME ?? 'devdb-nest',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: process.env.NODE_ENV === 'development',
-      logging: process.env.NODE_ENV === 'development',
+      synchronize: (process.env.NODE_ENV ?? 'development') === 'development',
+      logging: (process.env.NODE_ENV ?? 'development') === 'development',
     }),
-    StatusModule,
     UsersModule,
     ProductsModule,
     AuthModule,
+    StatusModule,
   ],
 })
 export class AppModule {}
