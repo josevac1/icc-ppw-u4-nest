@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateUserDto } from '../dtos/create-user.dto';
@@ -11,6 +7,8 @@ import { UpdateUserDto } from '../dtos/update-user.dto';
 import { UserResponseDto } from '../dtos/user-response.dto';
 import { UserMapper } from '../mappers/user.mapper';
 import { UserEntity } from '../entities/user.entity';
+import { NotFoundException } from 'src/exceptions/domain/not-found.exception';
+import { ConflictException } from 'src/exceptions/domain/conflict.exception';
 
 @Injectable()
 export class UsersService {
@@ -27,7 +25,7 @@ export class UsersService {
   async findOne(id: number): Promise<UserResponseDto> {
     const entity = await this.userRepository.findOne({ where: { id } });
     if (!entity) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException(`Usuario no encontrado con ID: ${id}`);
     }
     return UserMapper.toResponse(entity);
   }
@@ -38,7 +36,7 @@ export class UsersService {
       where: { email: dto.email },
     });
     if (exists) {
-      throw new BadRequestException('El email ya está registrado');
+      throw new ConflictException(`El email ${dto.email} ya está registrado`);
     }
 
     const entity = this.userRepository.create(UserMapper.toEntity(dto));
@@ -49,7 +47,7 @@ export class UsersService {
   async update(id: number, dto: UpdateUserDto): Promise<UserResponseDto> {
     const entity = await this.userRepository.findOne({ where: { id } });
     if (!entity) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException(`Usuario no encontrado con ID: ${id}`);
     }
 
     entity.name = dto.name;
@@ -68,7 +66,7 @@ export class UsersService {
   ): Promise<UserResponseDto> {
     const entity = await this.userRepository.findOne({ where: { id } });
     if (!entity) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException(`Usuario no encontrado con ID: ${id}`);
     }
 
     if (dto.name !== undefined) {
@@ -88,7 +86,7 @@ export class UsersService {
   async delete(id: number): Promise<{ message: string }> {
     const result = await this.userRepository.delete(id);
     if (result.affected === 0) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException(`Usuario no encontrado con ID: ${id}`);
     }
 
     return { message: 'User deleted successfully' };
